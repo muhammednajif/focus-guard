@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:focus_guard/screens/home_screen.dart';
+import 'package:focus_guard/screens/dashboard_screen.dart';
+import 'package:focus_guard/screens/journey_screen.dart';
 import 'package:focus_guard/screens/apps_screen.dart';
 import 'package:focus_guard/screens/schedules_screen.dart';
 import 'package:focus_guard/screens/statistics_screen.dart';
 import 'package:focus_guard/screens/settings_screen.dart';
+import 'package:focus_guard/screens/fidget_spinner_screen.dart';
 import 'package:focus_guard/services/blocking_sync_service.dart';
 import 'package:focus_guard/theme/app_theme.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:focus_guard/widgets/block_screen.dart';
 import 'package:focus_guard/screens/onboarding_screen.dart';
-
-// TODO(Phase-2): Re-add Firebase.initializeApp() and Workmanager().initialize()
-// when firebase_core, firebase_auth, and workmanager are restored to pubspec.yaml.
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,14 +48,22 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
-  int currentIndex = 0;
+  int _currentIndex = 0;
 
-  final List<Widget> screens = const [
-    HomeScreen(),
+  final List<Widget> _screens = const [
+    DashboardScreen(),
     AppsScreen(),
-    SchedulesScreen(),
+    JourneyScreen(),
     StatisticsScreen(),
     SettingsScreen(),
+  ];
+
+  final List<String> _titles = const [
+    'Dashboard',
+    'Blocked Apps',
+    'Your Journey',
+    'Progress Snapshot',
+    'Settings'
   ];
 
   @override
@@ -78,31 +85,43 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _onTabTapped(int index) {
+      setState(() {
+        _currentIndex = index;
+      });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Focus Guard')),
-      body: IndexedStack(index: currentIndex, children: screens),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
+      appBar: AppBar(title: Text(_titles[_currentIndex])),
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const FidgetSpinnerScreen()),
+          );
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Apps'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Schedule',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Stats'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+        tooltip: 'Craving Tool',
+        child: const Icon(Icons.touch_app_outlined),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+            BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Apps'),
+            BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Journey'),
+            BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Stats'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+          ],
+        ),
       ),
     );
   }

@@ -1,164 +1,153 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
+import '../services/focus_score_service.dart'; // Assuming you have this service
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
   @override
-  State<StatisticsScreen> createState() => _StatisticsScreenState();
+  _StatisticsScreenState createState() => _StatisticsScreenState();
 }
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
   bool isLoading = true;
-  List<double> weeklyData = List.filled(7, 0.0);
-  int streakDays = 0;
-  double maxY = 10.0;
-  int weeklyCravings = 0;
+  int focusScore = 0;
+  int journeyProgress = 0;
+  int gardenLeaves = 0;
+
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadStats();
   }
 
-  Future<void> _loadData() async {
-    final box = await Hive.openBox('sessionHistory');
-    final cravingBox = await Hive.openBox('cravingHistory');
-    final now = DateTime.now();
-    // Start of the current week (Monday)
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
-    
-    List<double> week = List.filled(7, 0.0);
-    Set<String> activeDates = {};
-
-    for (var i = 0; i < box.length; i++) {
-      final session = box.getAt(i) as Map<dynamic, dynamic>;
-      final timestamp = DateTime.parse(session['timestamp'] as String);
-      final durationMins = session['durationMinutes'] as int;
-
-      // Track streak dates
-      final dateStr = "${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}";
-      if (durationMins > 0) {
-        activeDates.add(dateStr);
-      }
-
-      // Add to weekly chart if in current week
-      if (timestamp.isAfter(startOfWeek) || timestamp.isAtSameMomentAs(startOfWeek)) {
-        int dayIndex = timestamp.weekday - 1; // 0 = Monday, 6 = Sunday
-        week[dayIndex] += durationMins / 60.0; // hours
-      }
-    }
-
-    // Calculate streak
-    int currentStreak = 0;
-    DateTime checkDate = now;
-    while (true) {
-      final dateStr = "${checkDate.year}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}";
-      if (activeDates.contains(dateStr)) {
-        currentStreak++;
-        checkDate = checkDate.subtract(const Duration(days: 1));
-      } else {
-        if (checkDate.year == now.year && checkDate.month == now.month && checkDate.day == now.day) {
-           // Maybe they haven't focused today yet, check yesterday
-           checkDate = checkDate.subtract(const Duration(days: 1));
-           final yesterdayStr = "${checkDate.year}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}";
-           if(activeDates.contains(yesterdayStr)){
-             currentStreak++;
-             checkDate = checkDate.subtract(const Duration(days: 1));
-             continue;
-           }
-        }
-        break;
-      }
-    }
-
-    double maxVal = week.reduce((a, b) => a > b ? a : b);
-    
-    int cravingsCount = 0;
-    for (var i = 0; i < cravingBox.length; i++) {
-      final craving = cravingBox.getAt(i) as Map<dynamic, dynamic>;
-      final timestamp = DateTime.parse(craving['timestamp'] as String);
-      if (timestamp.isAfter(startOfWeek) || timestamp.isAtSameMomentAs(startOfWeek)) {
-        cravingsCount++;
-      }
-    }
+  Future<void> _loadStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    final score = await FocusScoreService.calculateSmartFocusScore();
 
     setState(() {
-      weeklyData = week;
-      streakDays = currentStreak;
-      maxY = maxVal > 10.0 ? maxVal * 1.2 : 10.0;
-      weeklyCravings = cravingsCount;
+      focusScore = score;
+      journeyProgress = prefs.getInt('journey_progress') ?? 0;
+      gardenLeaves = prefs.getInt('focus_garden_leaves') ?? 0;
       isLoading = false;
     });
   }
 
+  void _shareProgress() async {
+    final image = await _screenshotController.capture(
+      delay: const Duration(milliseconds: 10),
+      pixelRatio: 2.0 // Higher resolution for sharing
+    );
+
+    if (image != null) {
+      final directory = await getApplicationDocumentsDirectory();
+      final imagePath = await File('${directory.path}/progress.png').create();
+      await imagePath.writeAsBytes(image);
+
+      await Share.shareXFiles(
+        [XFile(imagePath.path)],
+        text: "Here's my Focus Guard progress! #FocusGuard #Productivity",
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
-
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Weekly Focus (Hours)", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            Expanded(
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxY,
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (double value, TitleMeta meta) {
-                          const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                          if (value.toInt() >= 0 && value.toInt() < 7) {
-                            return Text(days[value.toInt()]);
-                          }
-                          return const Text("");
-                        },
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
-                  barGroups: List.generate(7, (index) {
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [BarChartRodData(toY: weeklyData[index], color: Colors.green, width: 16, borderRadius: BorderRadius.circular(4))],
-                    );
-                  }),
+      appBar: AppBar(
+        title: const Text("Progress Snapshot"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _shareProgress,
+            tooltip: "Share Progress",
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Screenshot(
+                  controller: _screenshotController,
+                  child: _buildShareableCard(),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.local_fire_department, color: Colors.orange),
-                title: const Text("Current Focus Streak"),
-                trailing: Text("$streakDays Days", style: const TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                title: const Text("Distraction Attempts (7 Days)"),
-                subtitle: const Text("Times you tried to open a blocked app"),
-                trailing: Text("$weeklyCravings", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ),
-            ),
-          ],
+    );
+  }
+
+  Widget _buildShareableCard() {
+    return Container(
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A1A2E), Color(0xFF2D2D44)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(15.0),
+        border: Border.all(color: Colors.cyanAccent, width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "My Focus Guard Stats",
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 24),
+
+          // Focus Score
+          _buildStatItem(Icons.track_changes, "Focus Score", "$focusScore / 100"),
+          const Divider(color: Colors.white24),
+
+          // Journey Progress
+          _buildStatItem(Icons.map, "Journey Progress", "Day $journeyProgress / 100"),
+          const Divider(color: Colors.white24),
+
+          // Focus Garden
+          _buildStatItem(Icons.eco, "Focus Garden", "$gardenLeaves Leaves"),
+          const SizedBox(height: 24),
+
+          // Plant ASCII Art
+          Text(
+            _buildPlantAscii(gardenLeaves),
+            style: const TextStyle(fontSize: 36, color: Colors.greenAccent, height: 1.2),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildStatItem(IconData icon, String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.cyanAccent, size: 30),
+          const SizedBox(width: 16),
+          Text(title, style: const TextStyle(fontSize: 18, color: Colors.white)),
+          const Spacer(),
+          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  // Using the same ASCII logic from the home screen
+  String _buildPlantAscii(int leaves) {
+    if (leaves == 0) return "🌱\n(Pot)";
+    String stem = List.generate(leaves ~/ 3 + 1, (index) => '|').join('\n');
+    String plant = List.generate(leaves, (index) => (index % 2 == 0 ? '/' : '\\')).join();
+    return "$plant\n$stem\n|___|";
   }
 }

@@ -1,56 +1,53 @@
 package com.example.focus_guard
 
 import android.app.Activity
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Button
-import android.widget.TextView
-import android.graphics.Color
+import android.os.Vibrator
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.EditText
-import android.view.inputmethod.EditorInfo
+import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
 import java.util.concurrent.ThreadLocalRandom
+import kotlin.math.min
 
 class BlockOverlayActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
-    private var currentStep = 0
     private var blockedPackage = ""
     private var blockReason = ""
-    private var currentProblem = 0
-    private var correctCount = 0
-    private var currentAnswer = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         blockedPackage = intent.getStringExtra("blocked_package") ?: "this app"
 
-        // Get block reason from SharedPreferences
         val prefs = getSharedPreferences("FocusGuardPrefs", MODE_PRIVATE)
         val settingsJson = prefs.getString("block_settings_$blockedPackage", "")
 
-        if (settingsJson.isNullOrEmpty()) {
-            blockReason = "Focus" // Default reason
+        blockReason = if (settingsJson.isNullOrEmpty()) {
+            "Focus" // Default reason
         } else {
             try {
                 val jsonObject = JSONObject(settingsJson)
-                blockReason = jsonObject.optString("reason", "Focus")
+                jsonObject.optString("reason", "Focus")
             } catch (e: Exception) {
-                blockReason = "Focus"
+                "Focus"
             }
         }
 
-        showRealityCheckScreen()
+        showFocusOrbScreen()
     }
 
-    private fun showRealityCheckScreen() {
-        currentStep = 0
-
-        // Build UI in code, no XML needed
+    private fun showFocusOrbScreen() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -58,70 +55,36 @@ class BlockOverlayActivity : Activity() {
             setPadding(60, 60, 60, 60)
         }
 
-        val emoji = TextView(this).apply {
-            text = when (blockReason.lowercase()) {
-                "study" -> "📚"
-                "work" -> "💼"
-                "sleep" -> "😴"
-                "health" -> "💪"
-                else -> "🚫"
-            }
-            textSize = 64f
-            gravity = Gravity.CENTER
-        }
-
         val title = TextView(this).apply {
-            text = "This is your $blockReason time"
-            textSize = 28f
+            text = "Hold the orb to continue"
+            textSize = 24f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 12)
+            setPadding(0, 0, 0, 48)
         }
 
-        val subtitle = TextView(this).apply {
-            text = "The app you tried to open is blocked"
-            textSize = 16f
-            setTextColor(Color.parseColor("#AAAAAA"))
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 40)
-        }
-
-        val keepFocusedButton = Button(this).apply {
-            text = "No, keep me focused"
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#6C63FF"))
-            setPadding(40, 20, 40, 20)
-            setOnClickListener {
-                // Close activity - user stays focused
-                finish()
-            }
-        }
-
-        val wantToLeaveButton = Button(this).apply {
-            text = "I still want to leave"
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#4CAF50"))
-            setPadding(40, 20, 40, 20)
-            setOnClickListener {
-                // Proceed to next step
+        val focusOrbView = FocusOrbView(this).apply {
+            onHoldCompleteListener = {
                 showBreathingExercise()
             }
         }
+        
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1.0f
+        )
+        focusOrbView.layoutParams = params
 
-        layout.addView(emoji)
+
         layout.addView(title)
-        layout.addView(subtitle)
-        layout.addView(keepFocusedButton)
-        layout.addView(wantToLeaveButton)
+        layout.addView(focusOrbView)
 
         setContentView(layout)
     }
 
     private fun showBreathingExercise() {
-        currentStep = 1
-
+        // ... (rest of the functions remain the same as before)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -137,7 +100,6 @@ class BlockOverlayActivity : Activity() {
             setPadding(0, 0, 0, 40)
         }
 
-        // Simple animated circle using text
         val circle = TextView(this).apply {
             text = "●"
             textSize = 100f
@@ -150,15 +112,12 @@ class BlockOverlayActivity : Activity() {
         layout.addView(circle)
 
         setContentView(layout)
-
-        // Start breathing animation
         animateBreathing(breathingText, circle)
     }
 
     private fun animateBreathing(breathingText: TextView, circle: TextView) {
-        val totalTime = 10000L // 10 seconds
-        val interval = 500L // 500ms update interval
-
+        val totalTime = 10000L
+        val interval = 50L
         val startTime = System.currentTimeMillis()
 
         val runnable = object : Runnable {
@@ -166,174 +125,140 @@ class BlockOverlayActivity : Activity() {
                 val elapsed = System.currentTimeMillis() - startTime
                 val progress = elapsed.toFloat() / totalTime
 
-                // Alternate between "Breathe in..." and "Breathe out..."
                 if (progress < 0.5f) {
                     breathingText.text = "Breathe in..."
                 } else {
                     breathingText.text = "Breathe out..."
                 }
 
-                // Animate circle size
-                val scale = 0.5f + 0.5f * Math.sin(progress * 2 * Math.PI).toFloat()
+                val scale = 0.5f + 0.5f * kotlin.math.sin(progress * 2 * Math.PI).toFloat()
                 circle.scaleX = scale
                 circle.scaleY = scale
 
                 if (elapsed < totalTime) {
                     handler.postDelayed(this, interval)
                 } else {
-                    // Move to math challenge after 10 seconds
                     showMathChallenge()
                 }
             }
         }
-
         handler.post(runnable)
     }
-
+    
     private fun showMathChallenge() {
-        currentStep = 2
-        currentProblem = 0
-        correctCount = 0
+        // ... (this function remains the same as before)
+        var currentProblem = 0
+        var correctCount = 0
+
+        fun generateAndShowProblem() {
+            if (currentProblem >= 3) {
+                showMotivationQuote()
+                return
+            }
+            val num1 = ThreadLocalRandom.current().nextInt(1, 21)
+            val num2 = ThreadLocalRandom.current().nextInt(1, 21)
+            val operations = listOf('+', '-', '*')
+            val operation = operations[ThreadLocalRandom.current().nextInt(0, operations.size)]
+            val correctAnswer = when (operation) {
+                '+' -> num1 + num2
+                '-' -> num1 - num2
+                '*' -> num1 * num2
+                else -> 0
+            }
+            val layout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setBackgroundColor(Color.parseColor("#1A1A2E"))
+                setPadding(60, 60, 60, 60)
+            }
+            val problemText = TextView(this).apply {
+                text = "$num1 $operation $num2 = ?"
+                textSize = 32f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, 40)
+            }
+            val answerInput = TextView(this).apply {
+                hint = "Answer"
+                textSize = 24f
+                setTextColor(Color.WHITE)
+                setBackgroundColor(Color.parseColor("#2D2D44"))
+                setPadding(20, 20, 20, 20)
+                gravity = Gravity.CENTER
+            }
+            val submitButton = Button(this).apply {
+                text = "Submit"
+                textSize = 16f
+                setTextColor(Color.WHITE)
+                setBackgroundColor(Color.parseColor("#6C63FF"))
+                setPadding(40, 20, 40, 20)
+                setOnClickListener {
+                    val userAnswer = answerInput.text.toString()
+                    if (userAnswer.isNotEmpty()) {
+                        val answer = userAnswer.toIntOrNull()
+                        if (answer != null && answer == correctAnswer) {
+                            currentProblem++
+                            correctCount++
+                            Toast.makeText(this@BlockOverlayActivity, "Correct!", Toast.LENGTH_SHORT).show()
+                            handler.postDelayed({ generateAndShowProblem() }, 500)
+                        } else {
+                            currentProblem = 0
+                            correctCount = 0
+                            Toast.makeText(this@BlockOverlayActivity, "Wrong! Try again", Toast.LENGTH_SHORT).show()
+                            answerInput.text = ""
+                        }
+                    }
+                }
+            }
+            val numberPad = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(0, 20, 0, 0)
+            }
+            val rows = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("0", "Clear"))
+            rows.forEach { row ->
+                val rowLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    setPadding(0, 0, 0, 10)
+                }
+                row.forEach { number ->
+                    val button = Button(this).apply {
+                        text = number
+                        textSize = 20f
+                        setTextColor(Color.WHITE)
+                        setBackgroundColor(Color.parseColor("#4A4A6A"))
+                        setPadding(20, 20, 20, 20)
+                        setOnClickListener {
+                            if (number == "Clear") {
+                                answerInput.text = ""
+                            } else {
+                                answerInput.append(number)
+                            }
+                        }
+                    }
+                    rowLayout.addView(button)
+                }
+                numberPad.addView(rowLayout)
+            }
+            layout.addView(problemText)
+            layout.addView(answerInput)
+            layout.addView(submitButton)
+            layout.addView(numberPad)
+            setContentView(layout)
+        }
         generateAndShowProblem()
     }
 
-    private fun generateAndShowProblem() {
-        if (currentProblem >= 3) {
-            // All problems solved correctly, show motivation quote
-            showMotivationQuote()
-            return
-        }
-
-        // Generate random numbers between 1 and 20
-        val num1 = ThreadLocalRandom.current().nextInt(1, 21)
-        val num2 = ThreadLocalRandom.current().nextInt(1, 21)
-
-        // Generate random operation (+, -, *)
-        val operations = listOf('+', '-', '*')
-        val operation = operations[ThreadLocalRandom.current().nextInt(0, operations.size)]
-
-        // Calculate the correct answer
-        val correctAnswer = when (operation) {
-            '+' -> num1 + num2
-            '-' -> num1 - num2
-            '*' -> num1 * num2
-            else -> 0
-        }
-
-        // Build UI for math challenge
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#1A1A2E"))
-            setPadding(60, 60, 60, 60)
-        }
-
-        val problemText = TextView(this).apply {
-            text = "$num1 $operation $num2 = ?"
-            textSize = 32f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 40)
-        }
-
-        val answerInput = EditText(this).apply {
-            hint = "Enter your answer"
-            textSize = 24f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#2D2D44"))
-            setPadding(20, 20, 20, 20)
-            gravity = Gravity.CENTER
-            setSingleLine()
-            imeOptions = EditorInfo.IME_ACTION_DONE
-        }
-
-        val submitButton = Button(this).apply {
-            text = "Submit"
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#6C63FF"))
-            setPadding(40, 20, 40, 20)
-            setOnClickListener {
-                val userAnswer = answerInput.text.toString()
-                if (userAnswer.isNotEmpty()) {
-                    val answer = userAnswer.toIntOrNull()
-                    if (answer != null && answer == correctAnswer) {
-                        // Correct answer
-                        currentProblem++
-                        correctCount++
-                        Toast.makeText(this@BlockOverlayActivity, "Correct!", Toast.LENGTH_SHORT).show()
-                        handler.postDelayed({
-                            generateAndShowProblem()
-                        }, 500)
-                    } else {
-                        // Wrong answer
-                        currentProblem = 0
-                        correctCount = 0
-                        Toast.makeText(this@BlockOverlayActivity, "Wrong! Try again", Toast.LENGTH_SHORT).show()
-                        answerInput.setText("")
-                    }
-                }
-            }
-        }
-
-        val numberPad = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(0, 20, 0, 0)
-        }
-
-        // Create 3 rows of number pad
-        val rows = listOf(
-            listOf("1", "2", "3"),
-            listOf("4", "5", "6"),
-            listOf("7", "8", "9"),
-            listOf("0")
-        )
-
-        rows.forEach { row ->
-            val rowLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, 10)
-            }
-
-            row.forEach { number ->
-                val button = Button(this).apply {
-                    text = number
-                    textSize = 20f
-                    setTextColor(Color.WHITE)
-                    setBackgroundColor(Color.parseColor("#4A4A6A"))
-                    setPadding(20, 20, 20, 20)
-                    setOnClickListener {
-                        answerInput.append(number)
-                    }
-                }
-                rowLayout.addView(button)
-            }
-
-            numberPad.addView(rowLayout)
-        }
-
-        layout.addView(problemText)
-        layout.addView(answerInput)
-        layout.addView(submitButton)
-        layout.addView(numberPad)
-
-        setContentView(layout)
-    }
-
     private fun showMotivationQuote() {
-        currentStep = 3
-
+        // ... (this function remains the same as before)
         val quote = getMotivationalQuote(blockReason.lowercase())
-
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setBackgroundColor(Color.parseColor("#1A1A2E"))
             setPadding(60, 60, 60, 60)
         }
-
         val quoteText = TextView(this).apply {
             text = quote
             textSize = 24f
@@ -341,42 +266,134 @@ class BlockOverlayActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 40)
         }
-
         val goBackButton = Button(this).apply {
             text = "Go Back to Home"
             textSize = 16f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor("#6C63FF"))
             setPadding(40, 20, 40, 20)
-            setOnClickListener {
-                finish()
-            }
+            setOnClickListener { finish() }
         }
-
         layout.addView(quoteText)
         layout.addView(goBackButton)
-
         setContentView(layout)
-
-        // Automatically go back to home after 3 seconds
-        handler.postDelayed({
-            finish()
-        }, 3000)
+        handler.postDelayed({ finish() }, 3000)
     }
 
     private fun getMotivationalQuote(reason: String): String {
         return when (reason) {
-            "study" -> "Learning is the beginning of wealth, learning is the beginning of health, learning is the beginning of spirituality. - James A. Michener"
-            "work" -> "The secret of getting ahead is getting started. - Mark Twain"
-            "sleep" -> "Sleep is the best meditation. - Dalai Lama"
-            "health" -> "Take care of your body. It's the only place you have to live. - Jim Rohn"
-            else -> "Stay focused and keep moving forward. Your future self will thank you."
+            "study" -> "The beautiful thing about learning is that no one can take it away from you."
+            "work" -> "The future depends on what you do today."
+            "sleep" -> "A good laugh and a long sleep are the two best cures for anything."
+            "health" -> "The greatest wealth is health."
+            else -> "The secret of getting ahead is getting started."
         }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        // Block back button throughout the entire flow
-        // This prevents users from exiting during the challenge
+        // Prevent users from exiting during the challenge
+    }
+}
+
+// --- Custom View for the Focus Orb ---
+class FocusOrbView(context: Context) : View(context) {
+    var onHoldCompleteListener: (() -> Unit)? = null
+
+    private val orbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#6C63FF") }
+    private val progressPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FFFFFF"); strokeWidth = 15f; style = Paint.Style.STROKE }
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 64f; textAlign = Paint.Align.CENTER }
+    
+    private var centerX = 0f
+    private var centerY = 0f
+    private var radius = 0f
+
+    private var isHolding = false
+    private val holdDuration = 5000L // 5 seconds
+    private var holdStartTime = 0L
+    private var progress = 0f
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+
+    private val progressRunnable = object : Runnable {
+        override fun run() {
+            if (isHolding) {
+                val elapsed = System.currentTimeMillis() - holdStartTime
+                progress = elapsed.toFloat() / holdDuration
+                
+                if (progress >= 1.0f) {
+                    progress = 1.0f
+                    isHolding = false
+                    vibrator.vibrate(100)
+                    onHoldCompleteListener?.invoke()
+                } else {
+                    handler.postDelayed(this, 16) // ~60fps
+                }
+                invalidate()
+            }
+        }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        centerX = w / 2f
+        centerY = h / 2f
+        radius = min(w, h) / 3f
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        // Draw the main orb
+        canvas.drawCircle(centerX, centerY, radius, orbPaint)
+        
+        // Draw the progress ring
+        val sweepAngle = progress * 360
+        canvas.drawArc(centerX - radius, centerY - radius, centerX + radius, centerY + radius, -90f, sweepAngle, false, progressPaint)
+
+        // Draw countdown text
+        if (isHolding && progress < 1.0f) {
+            val remaining = (holdDuration - (progress * holdDuration).toLong()) / 1000 + 1
+            canvas.drawText(remaining.toString(), centerX, centerY - ((textPaint.descent() + textPaint.ascent()) / 2), textPaint)
+        }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val x = event.x
+        val y = event.y
+        val distance = kotlin.math.sqrt((x - centerX).pow(2) + (y - centerY).pow(2))
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (distance <= radius) {
+                    isHolding = true
+                    holdStartTime = System.currentTimeMillis()
+                    handler.post(progressRunnable)
+                    vibrator.vibrate(50)
+                    invalidate()
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (isHolding) {
+                    isHolding = false
+                    progress = 0f
+                    handler.removeCallbacks(progressRunnable)
+                    Toast.makeText(context, "Hold Reset", Toast.LENGTH_SHORT).show()
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (isHolding && distance > radius) {
+                    // Finger moved outside the orb
+                    isHolding = false
+                    progress = 0f
+                    handler.removeCallbacks(progressRunnable)
+                    Toast.makeText(context, "Stay inside the orb!", Toast.LENGTH_SHORT).show()
+                    invalidate()
+                }
+            }
+        }
+        return super.onTouchEvent(event)
     }
 }
