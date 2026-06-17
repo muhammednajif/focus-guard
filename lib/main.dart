@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:focus_guard/screens/dashboard_screen.dart';
 import 'package:focus_guard/screens/journey_screen.dart';
@@ -68,7 +69,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void initState() {
-    super.initState();
+    super.initState.override();
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -108,12 +109,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
         notchMargin: 8.0,
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: _onTabTapped,
-          type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
             BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Apps'),
