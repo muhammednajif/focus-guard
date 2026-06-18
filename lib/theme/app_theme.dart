@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static final ThemeData lightTheme = ThemeData(
+  static final ThemeData darkTheme = ThemeData(
     primaryColor: const Color(0xFF0D47A1), // A deep, powerful blue
     scaffoldBackgroundColor: const Color(0xFF121212), // A dark, near-black background
     colorScheme: ColorScheme.fromSwatch(
