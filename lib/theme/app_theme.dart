@@ -3,27 +3,30 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static final ThemeData lightTheme = ThemeData(
-    primaryColor: const Color(0xFF4CAF50), // A vibrant green
-    scaffoldBackgroundColor: const Color(0xFFF5F5F5), // A light cream background
-    colorScheme: ColorScheme.fromSwatch().copyWith(
-      primary: const Color(0xFF4CAF50),
-      secondary: const Color(0xFFFFC107), // A warm accent color
-      surface: Colors.white,
-      onSurface: const Color(0xFF333333), // Darker text for readability
+    primaryColor: const Color(0xFF0D47A1), // A deep, powerful blue
+    scaffoldBackgroundColor: const Color(0xFF121212), // A dark, near-black background
+    colorScheme: ColorScheme.fromSwatch(
+      brightness: Brightness.dark,
+      primarySwatch: Colors.blue,
+    ).copyWith(
+      primary: const Color(0xFF0D47A1),
+      secondary: const Color(0xFFD32F2F), // A vibrant red for accents
+      surface: const Color(0xFF1E1E1E),
+      onSurface: Colors.white, // White text for readability
     ),
     appBarTheme: const AppBarTheme(
-      color: Color(0xFFF5F5F5),
+      backgroundColor: Color(0xFF1E1E1E),
       elevation: 0,
-      iconTheme: IconThemeData(color: Color(0xFF333333)),
+      iconTheme: IconThemeData(color: Colors.white),
       titleTextStyle: TextStyle(
-        color: Color(0xFF333333),
+        color: Colors.white,
         fontSize: 24,
         fontWeight: FontWeight.bold,
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: const Color(0xFFD32F2F),
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30),
@@ -36,25 +39,25 @@ class AppTheme {
       headlineSmall: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF333333),
+        color: Colors.white,
       ),
       bodyLarge: TextStyle(
         fontSize: 16,
-        color: Color(0xFF555555),
+        color: Colors.white70,
       ),
       bodyMedium: TextStyle(
         fontSize: 14,
-        color: Colors.grey,
+        color: Colors.white60,
       ),
     ),
     bottomAppBarTheme: const BottomAppBarTheme(
-      color: Colors.white,
+      color: Color(0xFF1E1E1E),
       elevation: 8,
       shape: CircularNotchedRectangle(),
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.transparent, // transparent to show BottomAppBar color
-      selectedItemColor: Color(0xFF4CAF50),
+      selectedItemColor: Color(0xFFD32F2F),
       unselectedItemColor: Colors.grey,
       selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
@@ -62,7 +65,7 @@ class AppTheme {
       showUnselectedLabels: true,
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: Color(0xFF4CAF50),
+      backgroundColor: Color(0xFFD32F2F),
     )
   );
 }

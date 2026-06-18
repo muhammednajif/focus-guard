@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 class PlantWidget extends StatelessWidget {
   final int leaves;

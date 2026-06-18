@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:focus_guard/screens/dashboard_screen.dart';
 import 'package:focus_guard/screens/journey_screen.dart';
 import 'package:focus_guard/screens/apps_screen.dart';
-import 'package:focus_guard/screens/schedules_screen.dart';
 import 'package:focus_guard/screens/statistics_screen.dart';
 import 'package:focus_guard/screens/settings_screen.dart';
 import 'package:focus_guard/screens/fidget_spinner_screen.dart';
@@ -69,7 +68,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void initState() {
-    super.initState.override();
+    super.initState();
     WidgetsBinding.instance.addObserver(this);
   }
 

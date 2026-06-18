@@ -141,7 +141,7 @@ class _JourneyScreenState extends State<JourneyScreen> {
                       padding: const EdgeInsets.only(top: 4.0),
                       child: Text(
                         "📍 $milestone",
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.cyanAccent,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
